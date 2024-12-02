@@ -2,12 +2,14 @@ const express = require("express");
 const app = express();
 const connectDB = require("./config/db.js");
 const User = require("./models/user-model.js");
+const ErrorHandling = require("./errors/error-handling.js");
 
 require("dotenv").config();
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// signup user
 app.post("/signup", async (req, res) => {
   try {
     const user = new User(req.body);
@@ -15,10 +17,11 @@ app.post("/signup", async (req, res) => {
     await user.save();
     res.status(201).send("user created successfully");
   } catch (err) {
-    res.status(400).send(err.errmsg);
+    res.status(400).send(err.message);
   }
 });
 
+// get single user
 app.get("/user", async (req, res) => {
   try {
     const userEmail = req.body.emailId;
@@ -28,11 +31,11 @@ app.get("/user", async (req, res) => {
     }
     res.status(200).send(user);
   } catch (error) {
-    res.status(400).send("Something went wrong", error.errmsg);
+    res.status(400).send("Something went wrong", error.message);
   }
 });
 
-// feed api
+// feed api | all users
 app.get("/feed", async (req, res) => {
   try {
     const users = await User.find({});
@@ -41,7 +44,7 @@ app.get("/feed", async (req, res) => {
     }
     res.status(200).send({ total: users.length, users });
   } catch (error) {
-    res.status(400).send("Something went wrong", error.errmsg);
+    res.status(400).send("Something went wrong", error.message);
   }
 });
 
@@ -56,7 +59,7 @@ app.delete("/user/:id", async (req, res) => {
     }
     res.status(200).send("user deleted");
   } catch (error) {
-    res.status(400).send("Something went wrong", error.errmsg);
+    res.status(400).send("Something went wrong", error.message);
   }
 });
 
@@ -70,13 +73,13 @@ app.patch("/user/:userId", async (req, res) => {
       ALLOW_UPDATES.includes(k)
     );
     if (!isUpadateAllow) {
-      return res.send("update not allowed");
+      throw new ErrorHandling(400, "update not allowed");
     }
     if (req.body.skills.length > 10) {
-      return res.status(400).send("skills must be lower than 10");
+      throw new ErrorHandling(400, "skills must be lower than 10");
     }
     if (req.body.about.length > 200) {
-      return res.status(400).send("about must be lower than 200 length");
+      throw new ErrorHandling(400, "about must be lower than 200 length");
     }
 
     const user = await User.findByIdAndUpdate({ _id: userId }, req.body, {
@@ -87,9 +90,9 @@ app.patch("/user/:userId", async (req, res) => {
       return res.status(400).send("user not found");
     }
     await user.save();
-    res.status(200).send("userupdate");
+    res.status(200).send("user updated");
   } catch (error) {
-    res.send("Something went wrong", error);
+    res.status(400).send("Something went wrong " + error.message);
   }
 });
 
