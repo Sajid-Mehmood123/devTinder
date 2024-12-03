@@ -1,5 +1,7 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
+const cookieParser = require("cookie-parser");
+const jwt = require("jsonwebtoken");
 const app = express();
 const connectDB = require("./config/db.js");
 const User = require("./models/user-model.js");
@@ -10,6 +12,7 @@ require("dotenv").config();
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 
 // signup user
 app.post("/signup", async (req, res) => {
@@ -48,15 +51,44 @@ app.post("/login", async (req, res) => {
     // checking user email in DB
     const user = await User.findOne({ emailId });
     if (!user) {
-      throw new Error("Invalid emailId");
+      throw new Error("Invalid credentials");
     }
 
     // compare user password
     const hashPassword = await bcrypt.compare(password, user.password);
     if (!hashPassword) {
-      throw new Error("Invalid password");
+      throw new Error("Invalid credentials");
     }
+
+    // jwt tokend
+    const token = await jwt.sign({ _id: user._id }, "$devTinder123!");
+
+    // adding cookie
+    res.cookie("token", token);
+
     res.status(200).send("User login successfully!");
+  } catch (error) {
+    res.status(400).send("Error : " + error.message);
+  }
+});
+
+// profile API
+app.get("/profile", async (req, res) => {
+  try {
+    const cookie = req.cookies;
+    const { token } = cookie;
+    if (!token) {
+      throw new Error("Invalid Token");
+    }
+
+    const decodeMessage = jwt.verify(token, "$devTinder123!");
+    const { _id } = decodeMessage;
+    const user = await User.findById(_id);
+    if (!user) {
+      throw new Error("user does not exist");
+    }
+
+    res.send(user);
   } catch (error) {
     res.status(400).send("Error : " + error.message);
   }
@@ -68,11 +100,11 @@ app.get("/user", async (req, res) => {
     const userEmail = req.body.emailId;
     const user = await User.findOne({ emailId: userEmail });
     if (!user) {
-      res.status(400).send("User not found");
+      throw new Error("user not found");
     }
     res.status(200).send(user);
   } catch (error) {
-    res.status(400).send("Something went wrong", error.message);
+    res.status(400).send("Something went wrong : " + error.message);
   }
 });
 
@@ -81,7 +113,7 @@ app.get("/feed", async (req, res) => {
   try {
     const users = await User.find({});
     if (users.length === 0) {
-      res.status(400).send("User not found");
+      throw new Error("user not found");
     }
     res.status(200).send({ total: users.length, users });
   } catch (error) {
@@ -96,7 +128,7 @@ app.delete("/user/:id", async (req, res) => {
 
     const user = await User.findByIdAndDelete(id);
     if (!user) {
-      return res.status(404).send("user not found");
+      throw new Error("user not found");
     }
     res.status(200).send("user deleted");
   } catch (error) {
@@ -128,7 +160,7 @@ app.patch("/user/:userId", async (req, res) => {
       runValidators: true,
     });
     if (!user) {
-      return res.status(400).send("user not found");
+      throw new Error("user not found");
     }
     await user.save();
     res.status(200).send("user updated");
