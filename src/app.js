@@ -1,8 +1,10 @@
 const express = require("express");
+const bcrypt = require("bcryptjs");
 const app = express();
 const connectDB = require("./config/db.js");
 const User = require("./models/user-model.js");
 const ErrorHandling = require("./errors/error-handling.js");
+const { signupValidation } = require("./utils/validate.js");
 
 require("dotenv").config();
 
@@ -12,12 +14,51 @@ app.use(express.urlencoded({ extended: true }));
 // signup user
 app.post("/signup", async (req, res) => {
   try {
-    const user = new User(req.body);
+    // validation
+    signupValidation(req);
+
+    const { firstName, lastName, emailId, password } = req.body;
+
+    // hashpassword
+    const hashPassword = await bcrypt.hash(password, 10);
+
+    const user = new User({
+      firstName,
+      lastName,
+      emailId,
+      password: hashPassword,
+    });
 
     await user.save();
     res.status(201).send("user created successfully");
   } catch (err) {
     res.status(400).send(err.message);
+  }
+});
+
+// login user
+app.post("/login", async (req, res) => {
+  try {
+    const { emailId, password } = req.body;
+
+    if (!emailId || !password) {
+      throw new Error("Please provide email and password");
+    }
+
+    // checking user email in DB
+    const user = await User.findOne({ emailId });
+    if (!user) {
+      throw new Error("Invalid emailId");
+    }
+
+    // compare user password
+    const hashPassword = await bcrypt.compare(password, user.password);
+    if (!hashPassword) {
+      throw new Error("Invalid password");
+    }
+    res.status(200).send("User login successfully!");
+  } catch (error) {
+    res.status(400).send("Error : " + error.message);
   }
 });
 
