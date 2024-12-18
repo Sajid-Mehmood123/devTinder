@@ -3,6 +3,7 @@ const { signupValidation } = require("../utils/validate.js");
 const User = require("../models/user-model.js");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
+const { userAuth } = require("../middlewars/auth-middleware.js");
 
 const router = express.Router();
 
@@ -12,7 +13,7 @@ router.post("/signup", async (req, res) => {
     // validation
     signupValidation(req);
 
-    const { firstName, lastName, emailId, password } = req.body;
+    const { firstName, lastName, emailId, password, gender } = req.body;
 
     // hashpassword
     const hashPassword = await bcrypt.hash(password, 10);
@@ -22,6 +23,7 @@ router.post("/signup", async (req, res) => {
       lastName,
       emailId,
       password: hashPassword,
+      gender,
     });
 
     await user.save();
@@ -47,7 +49,7 @@ router.post("/login", async (req, res) => {
     }
 
     // compare user password
-    const hashPassword = user.validatePassword(password);
+    const hashPassword = await user.validatePassword(password);
     if (!hashPassword) {
       throw new Error("Invalid credentials");
     }
@@ -56,12 +58,18 @@ router.post("/login", async (req, res) => {
     const token = await user.getJWT();
 
     // adding cookie
-    res.cookie("token", token);
+    res.cookie("token", token, { expires: new Date(Date.now() + 8 * 3600000) });
 
     res.status(200).send("User login successfully!");
   } catch (error) {
     res.status(400).send("Error : " + error.message);
   }
+});
+
+router.post("/logout", userAuth, async (req, res) => {
+  const user = req.user;
+  res.cookie("token", null, { expires: new Date(Date.now()) });
+  res.send(`${user.firstName} ${user.lastName} logout`);
 });
 
 module.exports = router;
