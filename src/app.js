@@ -7,6 +7,7 @@ const ErrorHandling = require("./errors/error-handling.js");
 const authRouter = require("./routes/auth-router.js");
 const profileRouter = require("./routes/profile-router.js");
 const requestRouter = require("./routes/request.router.js");
+const userRouter = require("./routes/user-router.js");
 
 require("dotenv").config();
 
@@ -17,6 +18,7 @@ app.use(cookieParser());
 app.use("/", authRouter);
 app.use("/", profileRouter);
 app.use("/", requestRouter);
+app.use("/", userRouter);
 
 connectDB()
   .then(() => {
