@@ -2,7 +2,6 @@ const express = require("express");
 const router = express.Router();
 const { userAuth } = require("../middlewars/auth-middleware");
 const { validateEditFields } = require("../utils/validate");
-const bcrypt = require("bcryptjs/dist/bcrypt");
 
 // profile API
 router.get("/profile/view", userAuth, async (req, res) => {
@@ -15,6 +14,7 @@ router.get("/profile/view", userAuth, async (req, res) => {
   }
 });
 
+// edit profile
 router.patch("/profile/edit", userAuth, async (req, res) => {
   try {
     if (!validateEditFields(req)) {
@@ -32,17 +32,36 @@ router.patch("/profile/edit", userAuth, async (req, res) => {
   }
 });
 
+// edit password
 router.patch("/profile/password", userAuth, async (req, res) => {
   try {
-    const { currentPassword, newPassword } = req.body;
-    if (!currentPassword || !newPassword) {
-      throw new Error("Please provide old and new password");
-    }
     const user = req.user;
+
+    const { currentPassword, newPassword, confirmPassword } = req.body;
+    if (!currentPassword || !confirmPassword) {
+      throw new Error("Please provide old and new password");
+    } else if (!validator.isStrongPassword(newPassword)) {
+      throw new Error("Please enter strong password");
+    }
+
     const isValidPassword = await user.validatePassword(currentPassword);
     if (!isValidPassword) {
       throw new Error("Wrong password");
     }
+
+    if (newPassword !== confirmPassword) {
+      throw new Error("password does not matched");
+    }
+
+    // check if the current and new password is same
+    const isNewPasswordSameAsOld = await bcrypt.compare(
+      newPassword,
+      user.password
+    );
+    if (isNewPasswordSameAsOld) {
+      throw new Error("New password cannot same as old");
+    }
+
     const hashPassword = await bcrypt.hash(newPassword, 10);
     user.password = hashPassword;
     await user.save();

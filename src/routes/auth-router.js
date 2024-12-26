@@ -66,6 +66,7 @@ router.post("/login", async (req, res) => {
   }
 });
 
+// logout
 router.post("/logout", userAuth, async (req, res) => {
   const user = req.user;
   res.cookie("token", null, { expires: new Date(Date.now()) });
